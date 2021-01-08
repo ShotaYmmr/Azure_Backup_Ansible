@@ -8,9 +8,7 @@ jobs:
   azure_backup:
     docker:
       - image: ubuntu:18.04
-    environment:
-      set_sbscription: USER
-      #set_sbscription: MGMT
+
     steps:
       - checkout
       - run:
