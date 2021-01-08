@@ -1,0 +1,11 @@
+- name: PowerShell Test
+  hosts: localhost
+  connection: local
+  become: yes
+  vars_files:
+    - vars/variable.yml
+
+  roles:
+#    - stopvm
+#    - backup
+#    - startvm

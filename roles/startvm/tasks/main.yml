@@ -1,0 +1,4 @@
+- name: start Azure VM
+  azure_rm_virtualmachine:
+    resource_group: "{{ vm_rg_name }}"
+    name: "{{ vm_name }}"

@@ -1,0 +1,15 @@
+---
+- name: set vars
+  command:
+    cmd: pwsh -c '(Get-AzRecoveryServicesVault -ResourceGroupName {{ rg_name }} -Name {{ vault_name}}).ID'
+  register: vaultid
+
+- name: run Azure backup
+  shell: |
+    pwsh -c '$NamedContainer = Get-AzRecoveryServicesBackupContainer -ContainerType AzureVM -Status Registered -FriendlyName {{ vm_name }} -VaultId {{ vaultid.stdout }} ;
+    $Item = Get-AzRecoveryServicesBackupItem -Container $NamedContainer -WorkloadType AzureVM -VaultId {{ vaultid.stdout }} ; $Item ;
+    $Job = Backup-AzRecoveryServicesBackupItem -Item $Item -VaultId {{ vaultid.stdout }} -ExpiryDateTimeUTC {{ date }};
+    Wait-AzRecoveryServicesBackupJob -Job $Job -VaultId {{ vaultid.stdout }} -Timeout {{ time }} ; '
+  register: Job
+
+- debug: msg={{ Job.stdout }}

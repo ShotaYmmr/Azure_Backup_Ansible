@@ -1,0 +1,96 @@
+version: 2.1
+
+orbs:
+  azure-cli: circleci/azure-cli@1.0.0
+  slack: circleci/slack@3.4.2
+
+jobs:
+  azure_backup:
+    docker:
+      - image: ubuntu:18.04
+    environment:
+      set_sbscription: USER
+      #set_sbscription: MGMT
+    steps:
+      - checkout
+      - run:
+          name: Install for PowerShell
+          command: |
+            apt-get -y update && apt-get -y install curl && apt-get -y install wget
+            apt-get -y install software-properties-common
+            wget -q https://packages.microsoft.com/config/ubuntu/18.04/packages-microsoft-prod.deb
+            dpkg -i packages-microsoft-prod.deb
+            add-apt-repository -y universe
+            apt-get -y update && apt-get -y install powershell
+            pwsh -v
+            curl -sL https://aka.ms/InstallAzureCLIDeb | bash
+
+      - run:
+          name: PowerShell Module Install
+          command: |
+            pwsh -c 'Install-Module Az.RecoveryServices -Force ; Import-Module Az.RecoveryServices -Force'
+            pwsh -c 'Install-Module Az.Resources -Force ; Import-Module Az.Resources -Force'
+            pwsh -c 'Install-Module Az.Accounts -Force ; Import-Module Az.Accounts -Force'
+            pwsh -c Get-Module
+
+      - run:
+          name: Install for Ansible
+          command: |
+            add-apt-repository -y ppa:deadsnakes/ppa
+            apt install -y python3.6 python3-pip libssl-dev libffi-dev
+            pip3 install ansible[azure]
+            ansible --version
+
+      - run:
+          name: Set Subscription
+          command: |
+            echo "export AZURE_SUBSCRIPTION_ID=$subsc_id" >> $BASH_ENV
+
+      - run:
+          name: azure login
+          command: |
+            pwsh -c '$passwd = ConvertTo-SecureString '${sp_sec}' -AsPlainText -Force;
+            $pscredential = New-Object System.Management.Automation.PSCredential '${sp_id}', $passwd;
+            Connect-AzAccount -ServicePrincipal -subscription '${AZURE_SUBSCRIPTION_ID}' -Credential $pscredential -Tenant '${tenant_id}''
+
+      - azure-cli/login-with-service-principal:
+          azure-sp: sp_id
+          azure-sp-password: sp_sec
+          azure-sp-tenant: tenant_id
+
+      - run:
+          name: az login vars set
+          command: |
+            echo "export AZURE_CLIENT_ID=$sp_id" >> $BASH_ENV
+            echo "export AZURE_SECRET=$sp_sec" >> $BASH_ENV
+            echo "export AZURE_TENANT=$tenant_id" >> $BASH_ENV
+
+      - run:
+          name: AzureVM Backup
+          command: |
+            ansible-playbook vm_backup.yml -vvv
+          no_output_timeout: 1.5h
+      - run:
+          command: |
+            ls -la
+            echo "export vm_name='$(grep "vm_name" vars/variable.yml)'" >> $BASH_ENV
+            echo "export vm_rg_name='$(grep "vm_rg_name" vars/variable.yml)'" >> $BASH_ENV
+            source $BASH_ENV
+
+      - slack/status:
+          success_message: >
+            Azure VM Backup処理が正常終了しました。\n
+            対象リソース\n
+            -----------------------\n
+            ${vm_name}\n
+            ${vm_rg_name}\n
+            -----------------------\n
+          failure_message: >
+             Azure VM Backup が異常終了しました。
+
+workflows:
+  version: 2.1
+  install:
+    jobs:
+      - azure_backup:
+          context: test-azure

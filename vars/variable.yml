@@ -1,0 +1,14 @@
+---
+# resorce_Group_Name
+rg_name: resorce_Group_Name
+# location
+locat: location
+# Recovery_Services_Container_Name
+vault_name: Recovery_Services_Container_Name
+# VM Resorce_Group_Name
+vm_rg_name: VM Resorce_Group_Name
+# Azure_VM_Name
+vm_name: VM_Name
+# TimeOut_Min for UTC
+time: 5400
+date: /'2020/08/26 00:00:00/'
